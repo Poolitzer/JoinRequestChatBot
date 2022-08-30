@@ -61,14 +61,14 @@ async def join_request(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # this needs to be a get_chat, because has_private_forwards is only set here
     user = await context.bot.get_chat(chat_id=update.effective_user.id)
     if user.has_private_forwards and not user.username:
-        message = f"The user {user.full_name} has send a join request, but can not be mentioned :(."
+        message = f"The user {user.full_name} has sent a join request, but can not be mentioned :(."
         context.bot_data["user_mentions"][user.id] = user.full_name
     else:
         if user.username:
             mention = f"@{user.username}"
         else:
             mention = f'<a href="tg://user?id={user.id}">{user.full_name}</a>'
-        message = f"The user {mention} has send a join request \\o/"
+        message = f"The user {mention} has sent a join request \\o/"
         context.bot_data["user_mentions"][user.id] = mention
     send_message = await context.bot.send_message(
         chat_id=JOINREQUESTCHAT, text=message, reply_markup=create_buttons(user.id)
@@ -117,11 +117,12 @@ async def edit_buttons(bot: Bot, messages_to_edit: List[int]):
 
 async def message_from_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message.reply_to_message.reply_markup:
-        await update.message.reply_text(
-            "Sorry, you either replied to the wrong message, "
-            "or this user has been dealt with already."
-        )
-        return
+        if update.message.reply_to_message.from_user.id == context.bot.id:
+            await update.message.reply_text(
+                "Sorry, you either replied to the wrong message, "
+                "or this user has been dealt with already."
+            )
+            return
     # we get the user id from the old reply markup
     user_id = int(
         update.message.reply_to_message.reply_markup.inline_keyboard[0][
@@ -137,7 +138,7 @@ async def message_from_group(update: Update, context: ContextTypes.DEFAULT_TYPE)
         message_id=update.message.message_id,
     )
     send_message = await update.message.reply_text(
-        f"Message send to {context.bot_data['user_mentions'][user_id]}",
+        f"Message sent to {context.bot_data['user_mentions'][user_id]}",
         reply_markup=create_buttons(user_id),
     )
     context.bot_data["messages_to_edit"][user_id].append(send_message.message_id)
@@ -158,7 +159,7 @@ async def message_from_private(update: Update, context: ContextTypes.DEFAULT_TYP
             await update.effective_message.forward(JOINREQUESTCHAT)
             message = await context.bot.send_message(
                 chat_id=JOINREQUESTCHAT,
-                text=f"The above Poll was send by {user_mention}",
+                text=f"The above Poll was sent by {user_mention}",
                 reply_to_message_id=context.bot_data["last_message_to_user"][user_id],
                 reply_markup=create_buttons(user_id),
             )
@@ -171,7 +172,7 @@ async def message_from_private(update: Update, context: ContextTypes.DEFAULT_TYP
         )
         message = await update.effective_message.copy(
             chat_id=JOINREQUESTCHAT,
-            caption=f"{previous_caption}This message was send by {user_mention}",
+            caption=f"{previous_caption}This message was sent by {user_mention}",
             reply_to_message_id=context.bot_data["last_message_to_user"][user_id],
             reply_markup=create_buttons(user_id),
         )
@@ -183,7 +184,7 @@ async def message_from_private(update: Update, context: ContextTypes.DEFAULT_TYP
         ):
             message = await context.bot.send_message(
                 chat_id=JOINREQUESTCHAT,
-                text=f"The above message was send by {user_mention}",
+                text=f"The above message was sent by {user_mention}",
                 reply_to_message_id=message.message_id,
                 reply_markup=create_buttons(user_id),
             )
@@ -191,7 +192,7 @@ async def message_from_private(update: Update, context: ContextTypes.DEFAULT_TYP
     else:
         message = await context.bot.send_message(
             chat_id=JOINREQUESTCHAT,
-            text=f"{update.effective_message.text_html_urled}\n\nThis message was send by {user_mention}",
+            text=f"{update.effective_message.text_html_urled}\n\nThis message was sent by {user_mention}",
             reply_to_message_id=context.bot_data["last_message_to_user"][user_id],
             reply_markup=create_buttons(user_id),
         )
@@ -201,8 +202,8 @@ async def message_from_private(update: Update, context: ContextTypes.DEFAULT_TYP
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(
         chat_id=update.effective_chat.id,
-        text="I'm a bot for the Translation Platform Talk group. You can find my source code on GitHub,"
-        " check out https://github.com/poolitzer/JoinRequestChatBot",
+        text="I'm a bot for the Translation Platform Talk group. You can find my source code on GitHub, "
+        "check out https://github.com/poolitzer/JoinRequestChatBot",
     )
 
 
