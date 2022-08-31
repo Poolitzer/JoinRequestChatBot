@@ -161,8 +161,6 @@ async def edit_buttons(bot: Bot, messages_to_edit: List[int]):
 
 
 async def message_from_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not update.message.reply_to_message:
-        return
     if not update.message.reply_to_message.reply_markup:
         if update.message.reply_to_message.from_user.id == context.bot.id:
             await update.message.reply_text(
@@ -281,7 +279,7 @@ if __name__ == "__main__":
 
     application.add_handler(ChatJoinRequestHandler(join_request))
     application.add_handler(
-        MessageHandler(filters.Chat(JOINREQUESTCHAT), message_from_group)
+        MessageHandler(filters.Chat(JOINREQUESTCHAT) & filters.REPLY, message_from_group)
     )
     application.add_handler(CommandHandler("start", start))
     application.add_handler(
