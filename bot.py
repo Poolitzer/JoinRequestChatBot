@@ -18,7 +18,7 @@ from telegram import (
     Dice,
     Contact,
 )
-from telegram.error import RetryAfter
+from telegram.error import RetryAfter, Forbidden
 from telegram.ext import (
     ApplicationBuilder,
     ContextTypes,
@@ -181,19 +181,28 @@ async def message_from_group(update: Update, context: ContextTypes.DEFAULT_TYPE)
             "Sorry, this user has been dealt with already."
         )
         return
-    await context.bot.copy_message(
-        chat_id=user_id,
-        from_chat_id=update.effective_chat.id,
-        message_id=update.effective_message.message_id,
-    )
+    context.bot_data["last_message_to_user"][
+        user_id
+    ] = update.effective_message.message_id
+    try:
+        await context.bot.copy_message(
+            chat_id=user_id,
+            from_chat_id=update.effective_chat.id,
+            message_id=update.effective_message.message_id,
+        )
+    except Forbidden:
+        message = await update.effective_message.reply_text(
+            f"The user {context.bot_data['user_mentions'][user_id]} blocked me, "
+            f"I can't send them messages anymore. I can still ban them however 😈",
+            reply_markup=create_buttons(user_id),
+        )
+        context.bot_data["messages_to_edit"][user_id].append(message.message_id)
+        return
     send_message = await update.effective_message.reply_text(
         f"Message sent to {context.bot_data['user_mentions'][user_id]}",
         reply_markup=create_buttons(user_id),
     )
     context.bot_data["messages_to_edit"][user_id].append(send_message.message_id)
-    context.bot_data["last_message_to_user"][
-        user_id
-    ] = update.effective_message.message_id
 
 
 async def message_from_private(update: Update, context: ContextTypes.DEFAULT_TYPE):
