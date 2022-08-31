@@ -74,8 +74,11 @@ async def join_request(update: Update, context: ContextTypes.DEFAULT_TYPE):
     send_message = await context.bot.send_message(
         chat_id=JOINREQUESTCHAT, text=message, reply_markup=create_buttons(user.id)
     )
-    context.bot_data["messages_to_edit"][user.id] = [send_message.message_id]
-    context.bot_data["last_message_to_user"][user.id] = send_message.message_id
+    if user.id in context.bot_data["messages_to_edit"]:
+        context.bot_data["messages_to_edit"][user.id].append(send_message.message_id)
+    else:
+        context.bot_data["messages_to_edit"][user.id] = [send_message.message_id]
+        context.bot_data["last_message_to_user"][user.id] = send_message.message_id
 
 
 async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
