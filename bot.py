@@ -161,28 +161,28 @@ async def edit_buttons(bot: Bot, messages_to_edit: List[int]):
 
 
 async def message_from_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not update.message.reply_to_message.reply_markup:
-        if update.message.reply_to_message.from_user.id == context.bot.id:
-            await update.message.reply_text(
+    if not update.effective_message.reply_to_message.reply_markup:
+        if update.effective_message.reply_to_message.from_user.id == context.bot.id:
+            await update.effective_message.reply_text(
                 "Sorry, you either replied to the wrong message, "
                 "or this user has been dealt with already."
             )
             return
     # we get the user id from the old reply markup
     user_id = int(
-        update.message.reply_to_message.reply_markup.inline_keyboard[0][
+        update.effective_message.reply_to_message.reply_markup.inline_keyboard[0][
             0
         ].callback_data.split("_")[1]
     )
     if user_id not in context.bot_data["user_mentions"]:
-        await update.message.reply_text("Sorry, this user has been dealt with already.")
+        await update.effective_message.reply_text("Sorry, this user has been dealt with already.")
         return
     await context.bot.copy_message(
         chat_id=user_id,
         from_chat_id=update.effective_chat.id,
-        message_id=update.message.message_id,
+        message_id=update.effective_message.message_id,
     )
-    send_message = await update.message.reply_text(
+    send_message = await update.effective_message.reply_text(
         f"Message sent to {context.bot_data['user_mentions'][user_id]}",
         reply_markup=create_buttons(user_id),
     )
@@ -194,7 +194,7 @@ async def message_from_group(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 async def message_from_private(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id not in context.bot_data["user_mentions"]:
-        await update.message.reply_text("Hi. Use /start to check me out.")
+        await update.effective_message.reply_text("Hi. Use /start to check me out.")
         return
     user_id = update.effective_user.id
     user_mention = (
@@ -279,7 +279,9 @@ if __name__ == "__main__":
 
     application.add_handler(ChatJoinRequestHandler(join_request))
     application.add_handler(
-        MessageHandler(filters.Chat(JOINREQUESTCHAT) & filters.REPLY, message_from_group)
+        MessageHandler(
+            filters.Chat(JOINREQUESTCHAT) & filters.REPLY, message_from_group
+        )
     )
     application.add_handler(CommandHandler("start", start))
     application.add_handler(
