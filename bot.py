@@ -168,6 +168,8 @@ async def message_from_group(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 "or this user has been dealt with already."
             )
             return
+    if update.effective_message.text.startswith("!"):
+        return
     # we get the user id from the old reply markup
     user_id = int(
         update.effective_message.reply_to_message.reply_markup.inline_keyboard[0][
@@ -175,7 +177,9 @@ async def message_from_group(update: Update, context: ContextTypes.DEFAULT_TYPE)
         ].callback_data.split("_")[1]
     )
     if user_id not in context.bot_data["user_mentions"]:
-        await update.effective_message.reply_text("Sorry, this user has been dealt with already.")
+        await update.effective_message.reply_text(
+            "Sorry, this user has been dealt with already."
+        )
         return
     await context.bot.copy_message(
         chat_id=user_id,
