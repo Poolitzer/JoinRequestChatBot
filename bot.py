@@ -81,7 +81,8 @@ def create_buttons(user_id: int):
             [
                 InlineKeyboardButton("✅", callback_data=f"y_{user_id}"),
                 InlineKeyboardButton("❌", callback_data=f"n_{user_id}"),
-            ]
+            ],
+            [InlineKeyboardButton("🛑", callback_data=f"b_{user_id}")],
         ]
     )
     return buttons
@@ -122,18 +123,18 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = int(data[1])
     if data[0] == "y":
         await context.bot.approve_chat_join_request(chat_id=MAINCHAT, user_id=user_id)
-        await context.bot.send_message(
-            chat_id=update.effective_chat.id,
-            text=f"{update.effective_user.mention_html()} accepted the join request.",
-            reply_to_message_id=update.callback_query.message.message_id,
-        )
-    else:
+        text = f"{update.effective_user.mention_html()} accepted the join request."
+    elif data[0] == "n":
         await context.bot.decline_chat_join_request(chat_id=MAINCHAT, user_id=user_id)
-        await context.bot.send_message(
-            chat_id=update.effective_chat.id,
-            text=f"{update.effective_user.mention_html()} rejected the join request.",
-            reply_to_message_id=update.callback_query.message.message_id,
-        )
+        text = f"{update.effective_user.mention_html()} rejected the join request."
+    else:
+        await context.bot.ban_chat_member(chat_id=MAINCHAT, user_id=user_id)
+        text = f"{update.effective_user.mention_html()} banned the join request."
+    await context.bot.send_message(
+        chat_id=update.effective_chat.id,
+        text=text,
+        reply_to_message_id=update.callback_query.message.message_id,
+    )
     del context.bot_data["user_mentions"][user_id]
     task = asyncio.create_task(
         edit_buttons(context.bot, context.bot_data["messages_to_edit"][user_id])
