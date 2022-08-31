@@ -14,6 +14,7 @@ from telegram import (
     Dice,
     Contact,
 )
+from telegram.error import RetryAfter
 from telegram.ext import (
     ApplicationBuilder,
     ContextTypes,
@@ -109,9 +110,15 @@ async def edit_buttons(bot: Bot, messages_to_edit: List[int]):
     # every second we edit out a button. We wait this long, so we don't rate limit the bot
     # instead of reversed here, I should have done prepend instead of append I guess
     for message_id in reversed(messages_to_edit):
-        await bot.edit_message_reply_markup(
-            chat_id=JOINREQUESTCHAT, message_id=message_id, reply_markup=None
-        )
+        try:
+            await bot.edit_message_reply_markup(
+                chat_id=JOINREQUESTCHAT, message_id=message_id, reply_markup=None
+            )
+        except RetryAfter as e:
+            await asyncio.sleep(e.retry_after)
+            await bot.edit_message_reply_markup(
+                chat_id=JOINREQUESTCHAT, message_id=message_id, reply_markup=None
+            )
         await asyncio.sleep(1)
 
 
