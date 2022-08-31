@@ -161,6 +161,8 @@ async def edit_buttons(bot: Bot, messages_to_edit: List[int]):
 
 
 async def message_from_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.message.reply_to_message:
+        return
     if not update.message.reply_to_message.reply_markup:
         if update.message.reply_to_message.from_user.id == context.bot.id:
             await update.message.reply_text(
