@@ -152,7 +152,11 @@ async def message_from_private(update: Update, context: ContextTypes.DEFAULT_TYP
         await update.message.reply_text("Hi. Use /start to check me out.")
         return
     user_id = update.effective_user.id
-    user_mention = update.effective_user.mention_html()
+    user_mention = (
+        f"@{update.effective_user.username}"
+        if update.effective_user.username
+        else update.effective_user.mention_html()
+    )
     if update.effective_message.effective_attachment:
         # Polls need to be forwarded
         if isinstance(update.effective_message.effective_attachment, Poll):
