@@ -168,7 +168,7 @@ async def message_from_group(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 "Sorry, you either replied to the wrong message, "
                 "or this user has been dealt with already."
             )
-            return
+        return
     if update.effective_message.text.startswith("!"):
         return
     # we get the user id from the old reply markup
@@ -290,7 +290,8 @@ if __name__ == "__main__":
     application.add_handler(ChatJoinRequestHandler(join_request))
     application.add_handler(
         MessageHandler(
-            filters.Chat(JOINREQUESTCHAT) & filters.REPLY & filters.TEXT, message_from_group
+            filters.Chat(JOINREQUESTCHAT) & filters.REPLY & filters.TEXT,
+            message_from_group,
         )
     )
     application.add_handler(CommandHandler("start", start))
