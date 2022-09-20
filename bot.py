@@ -356,7 +356,7 @@ if __name__ == "__main__":
     persistence = PicklePersistence(filepath="bot_data.pickle")
     application = (
         ApplicationBuilder()
-        .token("5794150058:AAF83grwz6wyEM2pTWmpE4qcg145RrFMaH8")
+        .token("TOKEN")
         .defaults(defaults)
         .persistence(persistence)
         .post_init(first_run_check)
