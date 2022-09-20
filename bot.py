@@ -44,7 +44,6 @@ logger = logging.getLogger(__name__)
 JOINREQUESTCHAT = -1001207129834
 MAINCHAT = -1001281813878
 DEVCHAT = 208589966
-background_tasks = set()
 
 
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -136,11 +135,9 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_to_message_id=update.callback_query.message.message_id,
     )
     del context.bot_data["user_mentions"][user_id]
-    task = asyncio.create_task(
-        edit_buttons(context.bot, context.bot_data["messages_to_edit"][user_id])
+    context.application.create_task(
+        edit_buttons(context.bot, context.bot_data["messages_to_edit"][user_id]), update
     )
-    background_tasks.add(task)
-    task.add_done_callback(background_tasks.discard)
     del context.bot_data["messages_to_edit"][user_id]
     del context.bot_data["last_message_to_user"][user_id]
 
