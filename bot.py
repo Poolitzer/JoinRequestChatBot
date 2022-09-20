@@ -41,8 +41,8 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-JOINREQUESTCHAT = -100
-MAINCHAT = -100
+JOINREQUESTCHAT = -1001207129834
+MAINCHAT = -1001281813878
 DEVCHAT = 208589966
 background_tasks = set()
 
@@ -91,9 +91,9 @@ def create_buttons(user_id: int):
 async def join_request(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(
         chat_id=update.effective_user.id,
-        text="Hey, welcome to the Translation Platform Talk group. In order to combat spam, the moderators had to "
-        "enable join requests. Please answer any questions they have, or tell them a fun fact about yourself"
-        " proactively.",
+        text="Thank you for wanting to join the Translations talk group. Please reply to this message telling why you "
+        "want to join, so that the admins can make sure you're human — <i>not</i> a bot — "
+        "and accept your request!",
     )
     # this needs to be a get_chat, because has_private_forwards is only set here
     user = await context.bot.get_chat(chat_id=update.effective_user.id)
@@ -280,7 +280,7 @@ if __name__ == "__main__":
     persistence = PicklePersistence(filepath="bot_data.pickle")
     application = (
         ApplicationBuilder()
-        .token("TOKEN")
+        .token("5794150058:AAF83grwz6wyEM2pTWmpE4qcg145RrFMaH8")
         .defaults(defaults)
         .persistence(persistence)
         .post_init(first_run_check)
