@@ -1,4 +1,5 @@
 import asyncio
+import datetime
 import html
 import json
 import logging
@@ -18,7 +19,7 @@ from telegram import (
     Dice,
     Contact,
 )
-from telegram.error import RetryAfter, Forbidden
+from telegram.error import RetryAfter, Forbidden, BadRequest
 from telegram.ext import (
     ApplicationBuilder,
     ContextTypes,
@@ -30,12 +31,13 @@ from telegram.ext import (
     PicklePersistence,
     CommandHandler,
     Application,
+    JobQueue,
 )
 from typing import List
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    level=logging.INFO,
+    level=logging.ERROR,
     filename="log.log",
 )
 
@@ -87,6 +89,58 @@ def create_buttons(user_id: int):
     return buttons
 
 
+async def finish_user(
+    context: ContextTypes.DEFAULT_TYPE,
+    text: str,
+    chat_id: int,
+    user_id: int,
+    message_id: int = None,
+    update: Update = None,
+):
+    await context.bot.send_message(
+        chat_id=chat_id,
+        text=text,
+        reply_to_message_id=message_id,
+    )
+    context.application.create_task(
+        edit_buttons(context.bot, context.bot_data["messages_to_edit"][user_id]), update
+    )
+    try:
+        del context.bot_data["messages_to_edit"][user_id]
+        del context.bot_data["last_message_to_user"][user_id]
+        del context.bot_data["user_mentions"][user_id]
+    except KeyError:
+        # this can happen in a race condition.
+        pass
+
+
+def update_job(job_queue: JobQueue, job_name: int):
+    try:
+        job = job_queue.get_jobs_by_name(str(job_name))[0]
+    except IndexError:
+        # this can happen after a restart. No need to worry about this.
+        return
+    d = datetime.datetime.utcnow() + datetime.timedelta(hours=24)
+    job.job.reschedule("date", run_date=d)
+
+
+async def reject_job(context: ContextTypes.DEFAULT_TYPE):
+    user_id = context.job.user_id
+    await context.bot.send_message(
+        chat_id=user_id,
+        text="Your join request expired because we could not make sure you're not a bot. You are welcome to "
+        "send another join request if you still want to join.",
+    )
+    await context.bot.decline_chat_join_request(chat_id=MAINCHAT, user_id=user_id)
+    await finish_user(
+        context,
+        "Join request of expired.",
+        JOINREQUESTCHAT,
+        user_id,
+        context.bot_data["last_message_to_user"][user_id],
+    )
+
+
 async def join_request(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(
         chat_id=update.effective_user.id,
@@ -114,32 +168,55 @@ async def join_request(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         context.bot_data["messages_to_edit"][user.id] = [send_message.message_id]
         context.bot_data["last_message_to_user"][user.id] = send_message.message_id
+    context.job_queue.run_once(
+        reject_job, datetime.timedelta(hours=24), user_id=user.id, name=str(user.id)
+    )
 
 
 async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.callback_query.answer()
     data = update.callback_query.data.split("_")
     user_id = int(data[1])
-    if data[0] == "y":
-        await context.bot.approve_chat_join_request(chat_id=MAINCHAT, user_id=user_id)
-        text = f"{update.effective_user.mention_html()} accepted the join request."
-    elif data[0] == "n":
-        await context.bot.decline_chat_join_request(chat_id=MAINCHAT, user_id=user_id)
-        text = f"{update.effective_user.mention_html()} rejected the join request."
-    else:
-        await context.bot.ban_chat_member(chat_id=MAINCHAT, user_id=user_id)
-        text = f"{update.effective_user.mention_html()} banned the join request."
-    await context.bot.send_message(
-        chat_id=update.effective_chat.id,
-        text=text,
-        reply_to_message_id=update.callback_query.message.message_id,
+    try:
+        if data[0] == "y":
+            await context.bot.approve_chat_join_request(
+                chat_id=MAINCHAT, user_id=user_id
+            )
+            text = f"{update.effective_user.mention_html()} accepted the join request."
+        elif data[0] == "n":
+            await context.bot.decline_chat_join_request(
+                chat_id=MAINCHAT, user_id=user_id
+            )
+            text = f"{update.effective_user.mention_html()} rejected the join request."
+        else:
+            await context.bot.ban_chat_member(chat_id=MAINCHAT, user_id=user_id)
+            text = f"{update.effective_user.mention_html()} banned the join request."
+    except BadRequest as e:
+        if e.message == "Hide_requester_missing":
+            text = (
+                f"Sorry {update.effective_user.mention_html()}, "
+                f"but the join request was already handled by someone else :("
+            )
+            message_id = update.callback_query.message.message_id
+            if user_id not in context.bot_data["messages_to_edit"]:
+                context.bot_data["messages_to_edit"][user_id] = [message_id]
+            elif message_id not in context.bot_data["messages_to_edit"][user_id]:
+                context.bot_data["messages_to_edit"][user_id].append(message_id)
+        else:
+            raise
+    try:
+        context.job_queue.get_jobs_by_name(str(user_id))[0].schedule_removal()
+    except IndexError:
+        # this can happen after a restart. No need to worry about this.
+        pass
+    await finish_user(
+        context,
+        text,
+        update.effective_chat.id,
+        user_id,
+        update.callback_query.message.message_id,
+        update,
     )
-    del context.bot_data["user_mentions"][user_id]
-    context.application.create_task(
-        edit_buttons(context.bot, context.bot_data["messages_to_edit"][user_id]), update
-    )
-    del context.bot_data["messages_to_edit"][user_id]
-    del context.bot_data["last_message_to_user"][user_id]
 
 
 async def edit_buttons(bot: Bot, messages_to_edit: List[int]):
@@ -201,6 +278,7 @@ async def message_from_group(update: Update, context: ContextTypes.DEFAULT_TYPE)
         reply_markup=create_buttons(user_id),
     )
     context.bot_data["messages_to_edit"][user_id].append(send_message.message_id)
+    update_job(context.job_queue, user_id)
 
 
 async def message_from_private(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -253,6 +331,7 @@ async def message_from_private(update: Update, context: ContextTypes.DEFAULT_TYP
             reply_markup=create_buttons(user_id),
         )
         context.bot_data["messages_to_edit"][user_id].append(message.message_id)
+    update_job(context.job_queue, user_id)
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
