@@ -126,15 +126,26 @@ def update_job(job_queue: JobQueue, job_name: int):
 
 async def reject_job(context: ContextTypes.DEFAULT_TYPE):
     user_id = context.job.user_id
-    await context.bot.send_message(
-        chat_id=user_id,
-        text="Your join request expired because we could not make sure you're not a bot. You are welcome to "
-        "send another join request if you still want to join.",
-    )
-    await context.bot.decline_chat_join_request(chat_id=MAINCHAT, user_id=user_id)
+    try:
+        await context.bot.send_message(
+            chat_id=user_id,
+            text="Your join request expired because we could not make sure you're not a bot. You are welcome to "
+            "send another join request if you still want to join.",
+        )
+    except Forbidden:
+        # if somebody blocks me :(
+        pass
+    try:
+        await context.bot.decline_chat_join_request(chat_id=MAINCHAT, user_id=user_id)
+    except BadRequest as e:
+        if e.message == "Hide_requester_missing":
+            # seems that someone already took care of that join request
+            pass
+        else:
+            raise
     await finish_user(
         context,
-        "Join request of expired.",
+        "Join request of" + context.bot_data["user_mentions"][user_id] + "expired.",
         JOINREQUESTCHAT,
         user_id,
         context.bot_data["last_message_to_user"][user_id],
