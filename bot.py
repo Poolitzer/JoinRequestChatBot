@@ -135,6 +135,12 @@ async def reject_job(context: ContextTypes.DEFAULT_TYPE):
     except Forbidden:
         # if somebody blocks me :(
         pass
+    except BadRequest as e:
+        if e.message == "Chat not found":
+            # the account got deleted. I think.
+            pass
+        else:
+            raise
     try:
         await context.bot.decline_chat_join_request(chat_id=MAINCHAT, user_id=user_id)
     except BadRequest as e:
@@ -145,7 +151,8 @@ async def reject_job(context: ContextTypes.DEFAULT_TYPE):
             raise
     await finish_user(
         context,
-        "Join request of" + context.bot_data["user_mentions"][user_id] + "expired.",
+        # this gave me a key error a couple times for a user which got rejected. Not sure why. cant reproduce
+        "Join request of " + context.bot_data["user_mentions"][user_id] + " expired.",
         JOINREQUESTCHAT,
         user_id,
         context.bot_data["last_message_to_user"][user_id],
@@ -190,17 +197,31 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = int(data[1])
     try:
         if data[0] == "y":
-            await context.bot.approve_chat_join_request(
-                chat_id=MAINCHAT, user_id=user_id
-            )
+            try:
+                await context.bot.approve_chat_join_request(
+                    chat_id=MAINCHAT, user_id=user_id
+                )
+            except Forbidden:
+                # telegram disabled the account
+                pass
             text = f"{update.effective_user.mention_html()} accepted the join request."
         elif data[0] == "n":
-            await context.bot.decline_chat_join_request(
-                chat_id=MAINCHAT, user_id=user_id
-            )
+            try:
+                await context.bot.decline_chat_join_request(
+                    chat_id=MAINCHAT, user_id=user_id
+                )
+            except Forbidden:
+                pass
             text = f"{update.effective_user.mention_html()} rejected the join request."
         else:
-            await context.bot.ban_chat_member(chat_id=MAINCHAT, user_id=user_id)
+            try:
+                await context.bot.ban_chat_member(chat_id=MAINCHAT, user_id=user_id)
+            except BadRequest as e:
+                if e.message == "Participant_id_invalid":
+                    # telegram was quicker and they banned the account
+                    pass
+            except Forbidden:
+                pass
             text = f"{update.effective_user.mention_html()} banned the join request."
     except BadRequest as e:
         if e.message == "Hide_requester_missing":
