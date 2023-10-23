@@ -186,9 +186,12 @@ async def join_request(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         context.bot_data["messages_to_edit"][user.id] = [send_message.message_id]
         context.bot_data["last_message_to_user"][user.id] = send_message.message_id
-    context.job_queue.run_once(
-        reject_job, datetime.timedelta(hours=24), user_id=user.id, name=str(user.id)
-    )
+    # if a user presses multiple times on the join chat button, we already have a job running
+    # which we do not need :)
+    if not context.job_queue.get_jobs_by_name(str(user.id)):
+        context.job_queue.run_once(
+            reject_job, datetime.timedelta(hours=24), user_id=user.id, name=str(user.id)
+        )
 
 
 async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
