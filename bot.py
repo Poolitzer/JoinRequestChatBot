@@ -160,6 +160,14 @@ async def reject_job(context: ContextTypes.DEFAULT_TYPE):
 
 
 async def join_request(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # this check tells us if the user has already pressed the chat join request button and decided to hit it again
+    if context.job_queue.get_jobs_by_name(str(user.id)):
+        await context.bot.send_message(
+            chat_id=update.effective_user.id,
+            text="You do not need to hit the button again, just write your message and I will forward it to the admins",
+        )
+        # the return is important so we don't do the things below again
+        return
     await context.bot.send_message(
         chat_id=update.effective_user.id,
         text="Thank you for wanting to join the Translations talk group. Please reply to this message telling why you "
@@ -186,12 +194,9 @@ async def join_request(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         context.bot_data["messages_to_edit"][user.id] = [send_message.message_id]
         context.bot_data["last_message_to_user"][user.id] = send_message.message_id
-    # if a user presses multiple times on the join chat button, we already have a job running
-    # which we do not need :)
-    if not context.job_queue.get_jobs_by_name(str(user.id)):
-        context.job_queue.run_once(
-            reject_job, datetime.timedelta(hours=24), user_id=user.id, name=str(user.id)
-        )
+    context.job_queue.run_once(
+        reject_job, datetime.timedelta(hours=24), user_id=user.id, name=str(user.id)
+    )
 
 
 async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
