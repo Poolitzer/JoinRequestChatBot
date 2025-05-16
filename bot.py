@@ -161,7 +161,7 @@ async def reject_job(context: ContextTypes.DEFAULT_TYPE):
 
 async def join_request(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # this check tells us if the user has already pressed the chat join request button and decided to hit it again
-    if context.job_queue.get_jobs_by_name(str(user.id)):
+    if context.job_queue.get_jobs_by_name(str(update.effective_user.id)):
         await context.bot.send_message(
             chat_id=update.effective_user.id,
             text="You do not need to hit the button again, just write your message and I will forward it to the admins",
@@ -396,7 +396,7 @@ if __name__ == "__main__":
     persistence = PicklePersistence(filepath="bot_data.pickle")
     application = (
         ApplicationBuilder()
-        .token("5645864852:AAG7QbjC5dfuHC5-q6byJKaKQZdXeljBwmE")
+        .token("TOKEN")
         .defaults(defaults)
         .persistence(persistence)
         .post_init(first_run_check)
